@@ -1,9 +1,11 @@
 import React, {useState} from 'react';
-import {Form} from 'react-bootstrap';
-import {Link} from "react-router-dom";
+import {useHistory} from 'react-router-dom';
+import {Button, Form} from 'react-bootstrap';
 
 function Search({owner = "", name = ""}) {
   const [state, setState] = useState({owner, name});
+  let history = useHistory();
+
   return (
     <Form inline>
       <Form.Label srOnly>
@@ -26,10 +28,11 @@ function Search({owner = "", name = ""}) {
         value={state.name}
         onChange={evt => setState({...state, name: evt.currentTarget.value.trim()})}
       />
-      <Link className={`btn btn-primary mb-2 ${!state.owner || !state.name ? 'disabled' : ''}`}
-            to={`/${state.owner}/${state.name}/`}>
-        Fetch dependencies
-      </Link>
+      <Button
+        disabled={!state.owner || !state.name} className="mb-2"
+        onClick={() => history.replace(`/${state.owner}/${state.name}/`)}>
+        Go
+      </Button>
     </Form>
   )
     ;

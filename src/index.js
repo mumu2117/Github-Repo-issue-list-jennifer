@@ -9,12 +9,12 @@ import './styles/App.css';
 import App from './containers/App';
 import * as serviceWorker from './serviceWorker';
 import {ApolloClient, ApolloProvider, InMemoryCache} from '@apollo/client';
-import {API_ROOT, GITHUB_PERSONAL_KEY} from "./containers/App/constants";
+import {API_ROOT, GITHUB_ACCESS_KEY} from "./containers/App/constants";
 
 const client = new ApolloClient({
   uri: API_ROOT,
   headers: {
-    Authorization: `bearer ${GITHUB_PERSONAL_KEY}`,
+    Authorization: `bearer ${GITHUB_ACCESS_KEY}`,
   },
   cache: new InMemoryCache()
 });

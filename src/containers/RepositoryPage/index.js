@@ -1,14 +1,17 @@
 import React, {useEffect} from 'react';
 import {NetworkStatus, useApolloClient, useQuery} from "@apollo/client";
 import {FETCH_REPOSITORY} from "./queries";
-import List from "./List";
-import {Alert} from 'react-bootstrap';
+import {Alert, Tab, Tabs} from 'react-bootstrap';
+import Loading from "../../components/Loading";
+import Repo from "./Repo";
+import Dependencies from "./Dependencies";
+import Vulnerability from "./Vulnerability";
 
 function RepositoryPage(props) {
   const {owner = '', name = ''} = props.match.params;
   const client = useApolloClient();
   client.link.options.headers.Accept = 'application/vnd.github.hawkgirl-preview+json';
-  let {loading, error, data, refetch, networkStatus} = useQuery(FETCH_REPOSITORY, {
+  let {loading, error, data, refetch, fetchMore, networkStatus} = useQuery(FETCH_REPOSITORY, {
     client,
     notifyOnNetworkStatusChange: true,
     variables: {owner, name}
@@ -21,27 +24,65 @@ function RepositoryPage(props) {
   if (!owner || !name) {
     return (
       <Alert variant="info">
-        Fetch dependencies of <b>Owner</b> and <b>Repository name</b> by the form
+        Fetch repository of <b>Owner</b> and <b>Repository name</b> by the form
       </Alert>
     );
   }
-
-  if (loading || networkStatus === NetworkStatus.refetch) return <p>Fetching...</p>;
-  if (error) return (
-    <Alert variant="danger">
-      <h5><i className="fa fa-warning"></i> Error !!!</h5>
-      {error.graphQLErrors.map(({message}, i) => (
-        <div key={i}>{message}</div>
-      ))}
-    </Alert>
-  );
-  return <>
-    <h3>Dependency graph</h3>
-    <hr/>
-    {data.repository.dependencyGraphManifests.nodes.map((node, index) => (
-      <List key={index.toString()} node={node}/>
-    ))}
-  </>
+  return (
+    <Loading
+      loading={networkStatus !== NetworkStatus.fetchMore && (loading || networkStatus === NetworkStatus.refetch)}
+      error={error}>
+      {data && (
+        <>
+          <Repo repo={data.repository}/>
+          <Tabs defaultActiveKey="1" id="uncontrolled-tab-example">
+            <Tab eventKey="contact" title="   " disabled>
+            </Tab>
+            <Tab eventKey="1" title="Dependency Graph">
+              <Dependencies
+                networkStatus={networkStatus}
+                repo={data.repository}
+                loadMore={node => {
+                  fetchMore({
+                    variables: {
+                      cursor: node.dependencies.pageInfo.endCursor
+                    },
+                    updateQuery: (previousResult, {fetchMoreResult}) => {
+                      const {repository} = previousResult;
+                      const nodes = repository.dependencyGraphManifests.nodes.map(preNode => {
+                        if (preNode.filename === node.filename) {
+                          const newNodes = fetchMoreResult.repository.dependencyGraphManifests.nodes.find(newNode => newNode.filename === node.filename) || {};
+                          return {
+                            ...preNode,
+                            dependencies: {
+                              nodes: [...preNode.dependencies.nodes, ...newNodes.dependencies.nodes],
+                              pageInfo: newNodes.dependencies.pageInfo
+                            },
+                          }
+                        }
+                        return preNode;
+                      })
+                      return {
+                        repository: {
+                          ...repository,
+                          dependencyGraphManifests: {
+                            ...repository.dependencyGraphManifests,
+                            nodes: nodes
+                          }
+                        }
+                      };
+                    }
+                  })
+                }}/>
+            </Tab>
+            <Tab eventKey="2" title="Vulnerability Alerts">
+              <Vulnerability repo={data.repository}/>
+            </Tab>
+          </Tabs>
+        </>
+      )}
+    </Loading>
+  )
 }
 
 export default RepositoryPage;
